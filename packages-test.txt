@@ -1,0 +1,11 @@
+# Archivo de prueba con pocos paquetes para validar funcionalidad
+# Formatos mixtos para probar
+
+# Paquete simple
+lodash@4.17.20
+
+# Paquete con scope 
+@ctrl/golang-template@1.4.2
+
+# Paquete conocido que debería existir
+moment@2.29.1
