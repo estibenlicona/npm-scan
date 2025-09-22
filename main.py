@@ -11,6 +11,17 @@ from datetime import datetime
 import hashlib
 import pickle
 
+# Configuración
+ORG = "estibenlicona"
+PAT = "6ueKVZvdh0Ga4lFxT9lyei2NQs2JTYRXDYy6D3hApF5pGPPtesx5JQQJ99BIACAAAAAAAAAAAAASAZDO2QFF"  # tu Personal Access Token
+
+# Configuración de caché
+CACHE_DIR = os.path.join(os.getcwd(), ".npm_scan_cache")
+CACHE_FILE = os.path.join(CACHE_DIR, "package_lock_cache.pkl")
+
+# Configuración de autenticación
+auth = HTTPBasicAuth("", PAT)
+
 # Tipos para mejorar el type checking
 class RepoData(TypedDict):
     project: str
@@ -44,18 +55,6 @@ class ScanResults(TypedDict):
     repositories: List[RepositoryResult]
     summary: Dict[str, int]  # Contadores de vulnerable/secure/etc
 
-# Configuración
-ORG = "flujodetrabajot"
-PROJECT = "Tuya - Tecnologia"  # o None si quieres buscar en toda la org
-PAT = "BCY1DgMHEAkihceor2h8vRfbiNetPB2aBtziXjanq0RyTM3aF3WIJQQJ99BDACAAAAA7a3kzAAASAZDO4dwm"  # tu Personal Access Token
-
-# Configuración de caché
-CACHE_DIR = os.path.join(os.getcwd(), ".npm_scan_cache")
-CACHE_FILE = os.path.join(CACHE_DIR, "package_lock_cache.pkl")
-
-# Configuración de autenticación
-auth = HTTPBasicAuth("", PAT)
-
 def generate_package_json_signature(package_json_content: Dict[str, Any]) -> str:
     """
     Genera una firma única del package.json para usar como clave de caché.
@@ -65,19 +64,9 @@ def generate_package_json_signature(package_json_content: Dict[str, Any]) -> str
         
     Returns:
         str: Firma SHA256 del contenido relevante del package.json
-    """
-    # Solo incluir las secciones relevantes para package-lock.json
-    relevant_data = {
-        "dependencies": package_json_content.get("dependencies", {}),
-        "devDependencies": package_json_content.get("devDependencies", {}),
-        "peerDependencies": package_json_content.get("peerDependencies", {}),
-        "optionalDependencies": package_json_content.get("optionalDependencies", {}),
-        "name": package_json_content.get("name", ""),
-        "version": package_json_content.get("version", "")
-    }
-    
+    """    
     # Convertir a JSON string determinista (ordenado)
-    json_string = json.dumps(relevant_data, sort_keys=True)
+    json_string = json.dumps(package_json_content, sort_keys=True)
     
     # Generar hash SHA256
     return hashlib.sha256(json_string.encode('utf-8')).hexdigest()
@@ -90,7 +79,7 @@ def ensure_cache_directory():
         os.makedirs(CACHE_DIR)
         print(f"  📁 Directorio de caché creado: {CACHE_DIR}")
 
-def load_cache() -> Dict[str, Dict[str, List[str]]]:
+def load_cache() -> Dict[str, Any]:
     """
     Carga la caché desde el archivo pickle.
     
@@ -113,7 +102,7 @@ def load_cache() -> Dict[str, Dict[str, List[str]]]:
     
     return {}
 
-def save_cache(cache: Dict[str, Dict[str, List[str]]]):
+def save_cache(cache: Dict[str, Any]):
     """
     Guarda la caché en el archivo pickle.
     
@@ -128,39 +117,46 @@ def save_cache(cache: Dict[str, Dict[str, List[str]]]):
     except Exception as e:
         print(f"    ⚠️  Error guardando caché en {CACHE_FILE}: {e}")
 
-def get_cached_lock_deps(package_json_signature: str) -> Optional[Dict[str, List[str]]]:
+def get_cached_lock_content(package_json_signature: str) -> Optional[Dict[str, Any]]:
     """
-    Obtiene las dependencias del package-lock.json desde la caché.
-    
+    Obtiene el contenido completo de package-lock.json desde la caché.
+
     Args:
         package_json_signature: Firma del package.json
-        
+
     Returns:
-        Dict: Dependencias filtradas o None si no está en caché
+        Dict: Contenido del package-lock.json (JSON) o None si no está en caché
     """
     cache = load_cache()
     if package_json_signature in cache:
-        cached_data = cache[package_json_signature]
-        total_cached = sum(len(versions) for versions in cached_data.values())
-        print(f"    ✅ Encontrado en caché (firma: {package_json_signature[:12]}...) - {total_cached} dependencias")
-        return cached_data
+        cached_lock = cache[package_json_signature]
+        # Intentar calcular un conteo aproximado de entradas para información
+        try:
+            total_entries = len(cached_lock.get("packages", {}))
+        except Exception:
+            total_entries = 0
+        print(f"    ✅ Encontrado package-lock.json en caché (firma: {package_json_signature[:12]}...) - {total_entries} entradas")
+        return cached_lock
     else:
-        print(f"    🔍 No encontrado en caché (firma: {package_json_signature[:12]}...)")
+        print(f"    🔍 No encontrado package-lock.json en caché (firma: {package_json_signature[:12]}...)")
         return None
 
-def cache_lock_deps(package_json_signature: str, lock_deps: Dict[str, List[str]]):
+def cache_lock_deps(package_json_signature: str, lock_content: Dict[str, Any]):
     """
-    Guarda las dependencias del package-lock.json en la caché.
-    
+    Guarda el contenido completo de package-lock.json en la caché.
+
     Args:
         package_json_signature: Firma del package.json
-        lock_deps: Dependencias filtradas a guardar
+        lock_content: Contenido completo del package-lock.json a guardar
     """
     cache = load_cache()
-    cache[package_json_signature] = lock_deps
-    total_deps = sum(len(versions) for versions in lock_deps.values())
+    cache[package_json_signature] = lock_content
+    try:
+        total_entries = len(lock_content.get("packages", {}))
+    except Exception:
+        total_entries = 0
     save_cache(cache)
-    print(f"    💾 Guardado en caché (firma: {package_json_signature[:12]}...) - {total_deps} dependencias")
+    print(f"    💾 package-lock.json guardado en caché (firma: {package_json_signature[:12]}...) - {total_entries} entradas")
 
 def check_npm_available() -> bool:
     """
@@ -187,10 +183,6 @@ def load_packages_from_file(filename: str = "packages.txt") -> List[Dict[str, st
     
     Formatos soportados del archivo:
         # Comentarios empiezan con #
-        
-        # Formato clásico con ==
-        lodash==4.17.20
-        react==16.13.0
         
         # Formato npm simple con @
         lodash@4.17.20
@@ -220,18 +212,8 @@ def load_packages_from_file(filename: str = "packages.txt") -> List[Dict[str, st
                 # Parsear diferentes formatos
                 name = ""
                 version = ""
-                
-                if '==' in line:
-                    # Formato: lodash==4.17.20
-                    try:
-                        name, version = line.split('==', 1)
-                        name = name.strip()
-                        version = version.strip()
-                    except Exception as e:
-                        print(f"⚠️  Error parseando línea {line_num} (formato ==): {line} - {e}")
-                        continue
                         
-                elif line.startswith('@') and '@' in line[1:]:
+                if line.startswith('@') and '@' in line[1:]:
                     # Formato npm con scope: @ctrl/golang-template@1.4.2
                     try:
                         # Encontrar el último @ que separa el nombre de la versión
@@ -385,7 +367,7 @@ def extract_filtered_dependencies_from_lock(lock_content: Dict[str, Any], target
             for dep_section in ["dependencies", "peerDependencies", "devDependencies", "optionalDependencies"]:
                 if dep_section in package_info:
                     deps = package_info[dep_section]
-                    for dep_name, dep_range in deps.items():
+                    for dep_name, _ in deps.items():
                         # Si esta dependencia es una de las que buscamos
                         if dep_name in target_set:
                             # Buscar la versión instalada de esta dependencia
@@ -414,7 +396,7 @@ def find_installed_version(packages: Dict[str, Any], dep_name: str, parent_path:
         str: Versión encontrada o None
     """
     # Buscar en diferentes ubicaciones según el algoritmo de resolución de Node.js
-    search_paths = []
+    search_paths: List[str] = []
     
     # 1. Dentro del node_modules del paquete padre
     if parent_path and parent_path != "":
@@ -509,12 +491,14 @@ def generate_package_lock(package_json_content: Dict[str, Any], target_packages:
     signature = generate_package_json_signature(package_json_content)
     print(f"    🔐 Firma del package.json: {signature[:12]}...")
     
-    # Verificar caché primero
-    cached_deps = get_cached_lock_deps(signature)
-    if cached_deps is not None:
-        total_relevant = sum(len(versions) for versions in cached_deps.values())
+    # Verificar caché primero (contenido completo del package-lock.json)
+    cached_lock_content = get_cached_lock_content(signature)
+    if cached_lock_content is not None:
+        # Extraer solo las dependencias que buscamos desde el lock cached
+        lock_deps = extract_filtered_dependencies_from_lock(cached_lock_content, target_packages)
+        total_relevant = sum(len(versions) for versions in lock_deps.values())
         print(f"    🚀 CACHÉ UTILIZADA - Evitando npm install, {total_relevant} dependencias cargadas instantáneamente")
-        return cached_deps
+        return lock_deps
     
     # No está en caché, generar package-lock.json
     print(f"    🔧 No encontrado en caché, generando package-lock.json...")
@@ -542,14 +526,14 @@ def generate_package_lock(package_json_content: Dict[str, Any], target_packages:
             # Leer y parsear el package-lock.json generado
             with open(package_lock_path, 'r', encoding='utf-8') as f:
                 lock_content = json.load(f)
-            
+
             # Solo extraer dependencias de los paquetes que buscamos
             lock_deps = extract_filtered_dependencies_from_lock(lock_content, target_packages)
             total_relevant = sum(len(versions) for versions in lock_deps.values())
             print(f"    ✅ package-lock.json generado - {total_relevant} dependencias relevantes encontradas")
-            
-            # Guardar en caché
-            cache_lock_deps(signature, lock_deps)
+
+            # Guardar el contenido completo del package-lock.json en caché
+            cache_lock_deps(signature, lock_content)
         else:
             print(f"    ❌ Error generando package-lock.json: {result.stderr}")
             
