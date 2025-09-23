@@ -1,4 +1,4 @@
-import requests
+import requests_test
 from requests.auth import HTTPBasicAuth
 from typing import Any, Dict, List, TypedDict, Optional
 import semver  # pip install semver
@@ -471,7 +471,7 @@ def download_package_json(org: str, project: str, repo_id: str, branch: str) -> 
         "api-version": "7.1"
     }
     
-    file_resp = requests.get(items_url, auth=auth, params=params)
+    file_resp = requests_test.get(items_url, auth=auth, params=params)
     file_resp.raise_for_status()
     return file_resp.json()
 
@@ -572,7 +572,7 @@ def get_lock_file_content(org: str, project: str, repo_id: str, branch: str, tar
                 "api-version": "7.1"
             }
             
-            file_resp = requests.get(items_url, auth=auth, params=params)
+            file_resp = requests_test.get(items_url, auth=auth, params=params)
             
             if file_resp.status_code == 200:
                 if lock_file == "package-lock.json":
@@ -628,7 +628,7 @@ def search_repositories_with_package_json() -> List[Dict[str, Any]]:
     }
     
     print("🔍 Buscando repositorios con package.json...")
-    resp = requests.post(search_url, auth=auth, headers={"Content-Type": "application/json"}, json=body)
+    resp = requests_test.post(search_url, auth=auth, headers={"Content-Type": "application/json"}, json=body)
     resp.raise_for_status()
     return resp.json()["results"]
 
@@ -706,7 +706,7 @@ for r in repos_with_package_json:
         }
         
         try:
-            file_resp = requests.get(items_url, auth=auth, params=params)
+            file_resp = requests_test.get(items_url, auth=auth, params=params)
             file_resp.raise_for_status()
             pkg_json = file_resp.json()
             
