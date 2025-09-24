@@ -64,7 +64,7 @@ def load_index(name: str) -> Dict[str, Any]:
     """Read an index JSON stored at the cache root."""
     _ensure_root()
     path = CACHE_ROOT / name
-    click.echo(f"[Info]: path: {path}")
+    click.echo(f"[Info]: load_index - path: {path}")
     if not path.exists():
         return {}
     try:
@@ -78,6 +78,7 @@ def save_index(name: str, payload: Dict[str, Any]) -> Path:
     """Persist the index JSON, overwriting any previous payload."""
     _ensure_root()
     path = CACHE_ROOT / name
+    click.echo(f"[Info]: save_index - path: {path}")
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, ensure_ascii=False)
     return path
