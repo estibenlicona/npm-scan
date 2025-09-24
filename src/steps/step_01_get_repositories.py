@@ -135,4 +135,7 @@ def get_repositories(force: bool = False) -> Optional[List[Dict[str, Any]]]:
 @click.option('--force', is_flag=True, help='Forzar refresco del cache')
 def run(force: bool = False):
     """Invoca la obtención de repositorios, opcionalmente forzando cache."""
-    get_repositories(force=force)
+    try:
+        get_repositories(force=force)
+    except Exception as e:
+        print(f"[Error]: obteniendo repositorios: {e}")
