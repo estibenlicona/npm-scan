@@ -119,20 +119,13 @@ stages:
                 AZURE_ORG: $(AZURE_ORG)
                 NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
-          # Build HTML report and Cobertura XML from the CSV
+          # Build HTML report from the CSV
           - script: python -m src.steps.step_05_publish_coverage
-            displayName: Build HTML report and coverage XML
+            displayName: Build HTML report
             env:
               NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
-          # Publish coverage so HTML is visible under Code Coverage tab
-          - task: PublishCodeCoverageResults@2
-            displayName: Publish coverage (HTML + Cobertura)
-            inputs:
-              codeCoverageTool: Cobertura
-              summaryFileLocation: '$(Build.SourcesDirectory)/.npm_scan_cache/report-html/cobertura.xml'
-              pathToSources: '$(Build.SourcesDirectory)/.npm_scan_cache'
-              failIfCoverageEmpty: false
+          # (Coverage tab publishing removed as requested)
 
           - task: Cache@2
             displayName: Save npm scan cache
@@ -175,23 +168,7 @@ stages:
               ArtifactName: audit_csv
               publishLocation: Container
 
-          # Detect Cobertura XML presence
-          - script: |
-              if [ -f "$(Build.SourcesDirectory)/.npm_scan_cache/report-html/cobertura.xml" ]; then
-                echo "##vso[task.setvariable variable=hasCovXml]true"
-              else
-                echo "##vso[task.setvariable variable=hasCovXml]false"
-              fi
-            displayName: Detect cobertura.xml presence
-            condition: always()
-
-          - task: PublishBuildArtifacts@1
-            displayName: Publish coverage XML (cobertura)
-            condition: and(succeededOrFailed(), eq(variables['hasCovXml'], 'true'))
-            inputs:
-              PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache/report-html/cobertura.xml
-              ArtifactName: coverage_xml
-              publishLocation: Container
+          # (Publish coverage XML removed)
 
           # Detect HTML report dir
           - script: |
