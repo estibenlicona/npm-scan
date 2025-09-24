@@ -141,17 +141,35 @@ stages:
               path: $(Build.SourcesDirectory)/.npm_scan_cache
               command: save
 
+          - script: |
+              if [ -d "$(Build.SourcesDirectory)/.npm_scan_cache" ]; then
+                echo "##vso[task.setvariable variable=hasNpmScanCache]true"
+              else
+                echo "##vso[task.setvariable variable=hasNpmScanCache]false"
+              fi
+            displayName: Detect .npm_scan_cache presence
+            condition: always()
+
           - task: PublishBuildArtifacts@1
             displayName: Publish npm scan cache
-            condition: and(succeededOrFailed(), exists('$(Build.SourcesDirectory)/.npm_scan_cache'))
+            condition: and(succeededOrFailed(), eq(variables['hasNpmScanCache'], 'true'))
             inputs:
               PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache
               ArtifactName: npm_scan_cache
               publishLocation: Container
 
+          - script: |
+              if [ -f "$(Build.SourcesDirectory)/.npm_scan_cache/package_lock_audit.csv" ]; then
+                echo "##vso[task.setvariable variable=hasAuditCsv]true"
+              else
+                echo "##vso[task.setvariable variable=hasAuditCsv]false"
+              fi
+            displayName: Detect audit CSV presence
+            condition: always()
+
           - task: PublishBuildArtifacts@1
             displayName: Publish audit CSV
-            condition: and(succeededOrFailed(), exists('$(Build.SourcesDirectory)/.npm_scan_cache/package_lock_audit.csv'))
+            condition: and(succeededOrFailed(), eq(variables['hasAuditCsv'], 'true'))
             inputs:
               PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache/package_lock_audit.csv
               ArtifactName: audit_csv
