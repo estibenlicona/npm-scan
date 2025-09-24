@@ -119,6 +119,26 @@ def load_lock_repo_index() -> Dict[str, Dict[str, Any]]:
     return {}
 
 
+def _build_package_to_lock_map(manifest: Dict[str, Dict[str, Any]]) -> Dict[str, Tuple[str, str]]:
+    """Return mapping packageSignature -> (lockSignature, preferredSource).
+
+    preferredSource resolves to 'repository' if present in sources, otherwise 'generated'.
+    """
+    mapping: Dict[str, Tuple[str, str]] = {}
+    for lock_sig, entry in (manifest or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        pkg_sigs = entry.get("packageSignatures") or []
+        if not isinstance(pkg_sigs, list):
+            continue
+        sources = entry.get("sources") or []
+        src = "repository" if isinstance(sources, list) and "repository" in sources else "generated"
+        for pkg_sig in pkg_sigs:
+            if isinstance(pkg_sig, str) and pkg_sig and pkg_sig not in mapping:
+                mapping[pkg_sig] = (lock_sig, src)
+    return mapping
+
+
 def lock_path_from_package_path(package_path: str) -> str:
     suffix = "package.json"
     lower_path = package_path.lower()
@@ -356,6 +376,7 @@ def get_package_lock(force: bool = False) -> None:
 
     manifest = load_lock_manifest()
     lock_repo_index = load_lock_repo_index()
+    pkg_to_lock = _build_package_to_lock_map(manifest)
 
     reused = 0
     downloaded = 0
@@ -387,6 +408,18 @@ def get_package_lock(force: bool = False) -> None:
         ):
             reused += 1
             continue
+
+        # Fast-path reuse by package signature (avoid network and npm) if possible
+        if not force and package_signature in pkg_to_lock:
+            mapped_lock_sig, mapped_source = pkg_to_lock[package_signature]
+            if load_json_document(PACKAGE_LOCK_SUBDIR, mapped_lock_sig) is not None:
+                # Reuse existing lock for identical package signature
+                reused += 1
+                update_lock_manifest_entry(manifest, mapped_lock_sig, repo_key, package_signature, mapped_source)
+                lock_repo_index[repo_key] = build_lock_repo_metadata(
+                    item, package_signature, mapped_lock_sig, mapped_source
+                )
+                continue
 
         lock_content: Optional[Dict[str, Any]] = None
         try:
@@ -432,6 +465,8 @@ def get_package_lock(force: bool = False) -> None:
         lock_repo_index[repo_key] = build_lock_repo_metadata(
             item, package_signature, lock_signature, source
         )
+        # Update in-memory mapping so subsequent identical package signatures in this run reuse
+        pkg_to_lock.setdefault(package_signature, (lock_signature, source))
 
     save_index(PACKAGE_LOCK_MANIFEST_FILE, manifest)
     save_index(PACKAGE_LOCK_REPO_INDEX_FILE, lock_repo_index)
