@@ -1,4 +1,10 @@
-﻿trigger:
+﻿parameters:
+  - name: forceRefresh
+    displayName: Force refresh caches
+    type: boolean
+    default: false
+
+trigger:
   branches:
     include:
       - master
@@ -58,34 +64,33 @@ stages:
             env:
               NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
-          - script: python -m src.steps.step_01_get_repositories --force
+          - script: python -m src.steps.step_01_get_repositories${{ if eq(parameters.forceRefresh, true) }} --force
             displayName: Step 01 - Get repositories
             env:
               AZURE_PAT: $(AZURE_PAT)
               AZURE_ORG: $(AZURE_ORG)
               NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
-          - script: python -m src.steps.step_02_get_packagesjson --force
+          - script: python -m src.steps.step_02_get_packagesjson${{ if eq(parameters.forceRefresh, true) }} --force
             displayName: Step 02 - Cache package.json files
             env:
               AZURE_PAT: $(AZURE_PAT)
               AZURE_ORG: $(AZURE_ORG)
               NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
-          - script: python -m src.steps.step_03_get_package_lock --force
+          - script: python -m src.steps.step_03_get_package_lock${{ if eq(parameters.forceRefresh, true) }} --force
             displayName: Step 03 - Cache package-lock files
             env:
               AZURE_PAT: $(AZURE_PAT)
               AZURE_ORG: $(AZURE_ORG)
               NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
-          - script: python -m src.steps.step_04_audit_package_locks --packages-file packages.txt
+          - script: python -m src.steps.step_04_audit_package_locks${{ if eq(parameters.forceRefresh, true) }} --force --packages-file packages.txt
             displayName: Step 04 - Audit package locks
             env:
               AZURE_PAT: $(AZURE_PAT)
               AZURE_ORG: $(AZURE_ORG)
               NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
-
 
           - task: Cache@2
             displayName: Save npm scan cache

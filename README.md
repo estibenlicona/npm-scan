@@ -7,10 +7,11 @@
    - `AZURE_ORG`: nombre de la organizacion de Azure DevOps (ej. `flujodetrabajot`).
    - `AZURE_PAT` (secreta): token con permisos para Code Search y repos.
    - Opcional `AZURE_CODESEARCH_PAGE_SIZE` para ajustar el tamanio de pagina.
-3. El pipeline usa dos caches:
+3. Ajusta el parametro `forceRefresh` (boolean) si deseas forzar la regeneracion de caches; por defecto esta deshabilitado para reutilizar artefactos previos.
+4. El pipeline usa dos caches:
    - `$(Pipeline.Workspace)/.pip` para dependencias de pip.
    - `$(Build.SourcesDirectory)/.npm_scan_cache` para los artefactos de los steps.
-4. Los resultados se publican como artefacto `npm_scan_cache` al final del job.
+5. Los resultados se publican como artefacto `npm_scan_cache` al final del job.
 
 ## Ejecucion local
 
