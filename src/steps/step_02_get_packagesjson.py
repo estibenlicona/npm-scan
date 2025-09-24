@@ -115,6 +115,7 @@ def build_repo_metadata(item: Dict[str, Any], signature: str) -> Dict[str, Any]:
 
 def get_packagesjson(force: bool = False) -> None:
     repos = load_repos_cache()
+    click.echo(f"[Info]: repos: {repos}")
     if not repos:
         raise click.ClickException(
             "No se encontro cache de repositorios. Ejecuta step_01 primero o revisa las credenciales."

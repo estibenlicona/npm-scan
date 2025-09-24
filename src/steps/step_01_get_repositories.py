@@ -49,6 +49,7 @@ def load_repos_cache() -> Optional[List[Dict[str, Any]]]:
     if os.path.exists(CACHE_FILE):
         with open(CACHE_FILE, 'r', encoding='utf-8') as f:
             try:
+                click.echo(f"[Info]: CACHE_FILE: {CACHE_FILE}") 
                 return json.load(f)
             except json.JSONDecodeError:
                 return None
