@@ -6,9 +6,10 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # Configuración de Azure DevOps (puede sobreescribirse con variables de entorno)
-ORG = os.getenv('AZURE_ORG', 'estibenlicona')
-PAT = os.getenv(
-    'AZURE_PAT', 'Ft4wuvaHItmDNIO03qImSjbggPXcz4uT0jBrpBVUoiByXAVVboYiJQQJ99BIACAAAAAAAAAAAAASAZDO3IKn')
+ORG = os.getenv('AZURE_ORG', 'flujodetrabajot')
+PAT = os.getenv('AZURE_PAT') or os.getenv('SYSTEM_ACCESSTOKEN', '') or ''
+if not PAT:
+    click.echo('[Warn] Token de Azure DevOps no configurado; se intentara sin autenticacion.', err=True)
 
 # Autenticación
 auth = HTTPBasicAuth('', PAT)
@@ -17,11 +18,28 @@ auth = HTTPBasicAuth('', PAT)
 CACHE_DIR = os.path.join(os.getcwd(), '.npm_scan_cache')
 CACHE_FILE = os.path.join(CACHE_DIR, 'repos_cache.json')
 
+_DEFAULT_PAGE_SIZE = 500
+
+
+def _resolve_page_size(value: Optional[str]) -> int:
+    try:
+        resolved = int(value) if value is not None else _DEFAULT_PAGE_SIZE
+        if resolved > 0:
+            return resolved
+    except (TypeError, ValueError):
+        pass
+    return _DEFAULT_PAGE_SIZE
+
+
+CODESEARCH_PAGE_SIZE = _resolve_page_size(os.getenv('AZURE_CODESEARCH_PAGE_SIZE'))
+
+
 
 def ensure_cache_dir() -> None:
     """Crea el directorio de cache si no existe."""
     if not os.path.exists(CACHE_DIR):
         os.makedirs(CACHE_DIR, exist_ok=True)
+
 
 
 def load_repos_cache() -> Optional[List[Dict[str, Any]]]:
@@ -35,6 +53,7 @@ def load_repos_cache() -> Optional[List[Dict[str, Any]]]:
     return None
 
 
+
 def save_repos_cache(repos: List[Dict[str, Any]]) -> None:
     """Guarda lista de repositorios en cache."""
     ensure_cache_dir()
@@ -42,7 +61,8 @@ def save_repos_cache(repos: List[Dict[str, Any]]) -> None:
         json.dump(repos, f, indent=2)
 
 
-def fetch_repositories(skip: int = 0, top: int = 500) -> List[Dict[str, Any]]:
+
+def fetch_repositories(skip: int = 0, top: int = CODESEARCH_PAGE_SIZE) -> List[Dict[str, Any]]:
     """
     Consulta Azure DevOps para repositorios con package.json.
 
@@ -70,7 +90,28 @@ def fetch_repositories(skip: int = 0, top: int = 500) -> List[Dict[str, Any]]:
     return data.get('results', [])
 
 
-def get_repositories(force: bool = False):
+
+def fetch_all_repositories(page_size: Optional[int] = None) -> List[Dict[str, Any]]:
+    """Obtiene todas las coincidencias paginando hasta agotar resultados."""
+    effective_page_size = page_size if page_size and page_size > 0 else CODESEARCH_PAGE_SIZE
+    aggregated: List[Dict[str, Any]] = []
+    skip = 0
+
+    while True:
+        batch = fetch_repositories(skip=skip, top=effective_page_size)
+        if not batch:
+            break
+        aggregated.extend(batch)
+        batch_size = len(batch)
+        skip += batch_size
+        if batch_size < effective_page_size:
+            break
+
+    return aggregated
+
+
+
+def get_repositories(force: bool = False) -> Optional[List[Dict[str, Any]]]:
     """
     Obtiene lista de repositorios, usando cache a menos que force=True.
     """
@@ -79,9 +120,10 @@ def get_repositories(force: bool = False):
         if cached is not None:
             print(f"Usando cache de repositorios ({len(cached)} items)")
             return cached
-    repos = fetch_repositories()
+    repos = fetch_all_repositories()
     save_repos_cache(repos)
     click.echo("Repos cargados utilizando cache")
+    return repos
 
 
 @click.command(help='Step 01: Get Repositories')
@@ -89,3 +131,5 @@ def get_repositories(force: bool = False):
 def run(force: bool = False):
     """Invoca la obtención de repositorios, opcionalmente forzando cache."""
     get_repositories(force=force)
+
+run()
