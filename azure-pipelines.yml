@@ -2,7 +2,7 @@
   - name: forceRefresh
     displayName: Force refresh caches
     type: boolean
-    default: true
+    default: false
 
 trigger:
   branches:
@@ -19,7 +19,7 @@ variables:
   PIP_CACHE_DIR: '$(Pipeline.Workspace)/.pip'
 
 pool:
-  name: Default
+  vmImage: 'ubuntu-latest'
 
 stages:
   - stage: Scan
@@ -127,6 +127,27 @@ stages:
                 AZURE_ORG: $(AZURE_ORG)
                 NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
+          - task: PowerShell@2
+            displayName: Inspect npm scan cache
+            inputs:
+              pwsh: true
+              targetType: inline
+              script: |
+                $cachePath = "$(Build.SourcesDirectory)/.npm_scan_cache"
+                Write-Host "Cache path: $cachePath"
+                if (-not (Test-Path $cachePath)) {
+                    Write-Error "Cache directory not found: $cachePath. Revisa Steps 01-03 (posible fallo de credenciales)."
+                }
+                else {
+                    Get-ChildItem -Path $cachePath -Recurse | ForEach-Object { Write-Host $_.FullName }
+                    if (-not (Test-Path (Join-Path $cachePath 'package_json_repo_index.json'))) {
+                        Write-Warning "package_json_repo_index.json missing"
+                    }
+                    if (-not (Test-Path (Join-Path $cachePath 'package_lock_repo_index.json'))) {
+                        Write-Warning "package_lock_repo_index.json missing"
+                    }
+                }
+
           - task: Cache@2
             displayName: Save npm scan cache
             condition: ne(variables.NpmScanCacheRestored, 'true')
@@ -137,7 +158,7 @@ stages:
 
           - task: PublishBuildArtifacts@1
             displayName: Publish npm scan cache
-            condition: succeededOrFailed()
+            condition: succeeded()
             inputs:
               PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache
               ArtifactName: npm_scan_cache
