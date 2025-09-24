@@ -1,13 +1,4 @@
-﻿trigger:
-  branches:
-    include:
-      - master
-
-pr:
-  branches:
-    include:
-      - master
-
+﻿
 variables:
   PYTHON_VERSION: '3.11'
   PIP_CACHE_DIR: '$(Pipeline.Workspace)/.pip'
@@ -50,63 +41,12 @@ stages:
                 npm-scan | "$(Agent.OS)"
               path: $(Build.SourcesDirectory)/.npm_scan_cache
 
-          - script: |
-              python -m unittest
-            displayName: Run unit tests
-            env:
-              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
-
-          - script: python -m src.steps.step_01_get_repositories --force
-            displayName: Step 01 - Get repositories
-            env:
-              AZURE_PAT: $(AZURE_PAT)
-              AZURE_ORG: $(AZURE_ORG)
-              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
-
           - script: python -m src.steps.step_02_get_packagesjson --force
             displayName: Step 02 - Cache package.json files
             env:
               AZURE_PAT: $(AZURE_PAT)
               AZURE_ORG: $(AZURE_ORG)
               NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
-
-          - script: python -m src.steps.step_03_get_package_lock --force
-            displayName: Step 03 - Cache package-lock files
-            env:
-              AZURE_PAT: $(AZURE_PAT)
-              AZURE_ORG: $(AZURE_ORG)
-              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
-
-          - script: python -m src.steps.step_04_audit_package_locks --force --packages-file packages.txt
-            displayName: Step 04 - Audit package locks
-            env:
-              AZURE_PAT: $(AZURE_PAT)
-              AZURE_ORG: $(AZURE_ORG)
-              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
-
-          - script: |
-              python - <<'PY'
-import json
-import pathlib
-import sys
-
-cache_path = pathlib.Path(r"$(Build.SourcesDirectory)/.npm_scan_cache").resolve()
-print(f"Cache path: {cache_path}")
-if not cache_path.exists():
-    print("##vso[task.logissue type=error]Cache directory not found")
-    sys.exit(1)
-
-for path in sorted(cache_path.rglob('*')):
-    print(path)
-
-package_index = cache_path / 'package_json_repo_index.json'
-lock_index = cache_path / 'package_lock_repo_index.json'
-if not package_index.exists():
-    print("##vso[task.logissue type=warning]package_json_repo_index.json missing")
-if not lock_index.exists():
-    print("##vso[task.logissue type=warning]package_lock_repo_index.json missing")
-PY
-            displayName: Inspect npm scan cache
 
           - task: Cache@2
             displayName: Save npm scan cache
