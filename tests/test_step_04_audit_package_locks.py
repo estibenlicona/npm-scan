@@ -1,10 +1,11 @@
-import csv
+﻿import csv
 import importlib
 import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -167,6 +168,24 @@ class Step04AuditPackageLocksTests(unittest.TestCase):
                 for entry in flat
             )
         )
+
+    def test_run_callback_skips_when_index_missing(self) -> None:
+        packages_file = self.cache_root / "empty-targets.txt"
+        packages_file.write_text("left-pad@1.3.0\n", encoding="utf-8")
+        output_path = self.cache_root / "missing.csv"
+
+        self.cache_utils.save_index("package_lock_repo_index.json", {})
+
+        with mock.patch.object(self.module.click, "echo") as mocked_echo:
+            self.module.run.callback(
+                packages_file=str(packages_file),
+                output=str(output_path),
+                include_all=False,
+                force=False,
+            )
+
+        mocked_echo.assert_any_call("[Warn] No se encontr? el ?ndice de package-lock. Ejecuta step_03 previamente.")
+        self.assertFalse(output_path.exists())
 
     def test_filter_and_evaluate_packages(self) -> None:
         flat = self.module.flatten_package_lock_content(self.lock_content)
