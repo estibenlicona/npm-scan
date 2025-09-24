@@ -41,6 +41,13 @@ stages:
                 npm-scan | "$(Agent.OS)"
               path: $(Build.SourcesDirectory)/.npm_scan_cache
 
+          - script: python -m src.steps.step_01_get_repositories --force
+            displayName: Step 01 - Get repositories
+            env:
+              AZURE_PAT: $(AZURE_PAT)
+              AZURE_ORG: $(AZURE_ORG)
+              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
+
           - script: python -m src.steps.step_02_get_packagesjson --force
             displayName: Step 02 - Cache package.json files
             env:
