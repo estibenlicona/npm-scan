@@ -19,7 +19,7 @@ variables:
   PIP_CACHE_DIR: '$(Pipeline.Workspace)/.pip'
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: Default
 
 stages:
   - stage: Scan
