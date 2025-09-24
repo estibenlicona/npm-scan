@@ -5,6 +5,7 @@ import pickle
 import shutil
 import subprocess
 import tempfile
+import time
 from typing import Any, Dict, Optional, Tuple, List, Set
 
 import click
@@ -282,18 +283,30 @@ def generate_lock_with_npm(package_content: Dict[str, Any]) -> Optional[Dict[str
         with open(package_path, "w", encoding="utf-8") as handle:
             json.dump(effective_content, handle, indent=2, ensure_ascii=False)
         env = os.environ.copy()
-        env.setdefault("npm_config_cache", os.path.join(temp_dir, "npm-cache"))
+        # Use a shared cache across repos and pipeline runs to speed up lock generation
+        shared_npm_cache = os.getenv("NPM_SCAN_NPM_CACHE") or str((CACHE_ROOT / "npm-cache").resolve())
+        os.makedirs(shared_npm_cache, exist_ok=True)
+        env.setdefault("npm_config_cache", shared_npm_cache)
+        ## usa time para medir cuantos segundos se tarda en generar el lock
+        npm_args: List[str] = [
+            "npm",
+            "install",
+            "--package-lock-only",
+            "--legacy-peer-deps",
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund",
+            "--prefer-offline",
+            "--progress=false",
+            "--silent",
+            "--cache-min=86400",
+        ]
+        custom_registry = env.get("NPM_REGISTRY") or os.getenv("NPM_REGISTRY")
+        start_time = time.time()
+        if isinstance(custom_registry, str) and custom_registry:
+            npm_args.append(f"--registry={custom_registry}")
         result = subprocess.run(
-            [
-                "npm",
-                "install",
-                "--package-lock-only",
-                "--legacy-peer-deps",
-                "--ignore-scripts",
-                "--no-audit",
-                "--no-fund",
-                "--prefer-offline",
-            ],
+            npm_args,
             cwd=temp_dir,
             capture_output=True,
             text=True,
@@ -301,6 +314,8 @@ def generate_lock_with_npm(package_content: Dict[str, Any]) -> Optional[Dict[str
             check=False,
             env=env,
         )
+        time_tried = time.time() - start_time
+        print(f"Tiempo en npm install: {time_tried} segundos")
         if result.returncode != 0:
             click.echo(f"[Error] npm install fallo generando package-lock: {result.stderr.strip()}")
             return None
