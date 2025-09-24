@@ -189,10 +189,10 @@ def generate_lock_with_npm(package_content: Dict[str, Any]) -> Optional[Dict[str
             check=False,
         )
         if result.returncode != 0:
-            click.echo(f"[Error] npm install falló generando package-lock: {result.stderr.strip()}")
+            click.echo(f"[Error] npm install fallo generando package-lock: {result.stderr.strip()}")
             return None
         if not os.path.exists(lock_path):
-            click.echo("[Error] npm no generó package-lock.json")
+            click.echo("[Error] npm no genero package-lock.json")
             return None
         with open(lock_path, "r", encoding="utf-8") as handle:
             return json.load(handle)

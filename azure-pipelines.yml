@@ -18,7 +18,7 @@ stages:
       - job: runSteps
         displayName: Run scan steps (manual run)
         pool:
-          name: Default
+          vmImage: 'ubuntu-latest'
         steps:
           - checkout: self
             clean: true
