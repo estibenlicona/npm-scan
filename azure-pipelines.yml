@@ -119,37 +119,12 @@ stages:
                 AZURE_ORG: $(AZURE_ORG)
                 NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
-          # Build HTML report from the CSV
-          - script: python -m src.steps.step_05_publish_coverage
-            displayName: Build HTML report
-            env:
-              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
-
-          # (Coverage tab publishing removed as requested)
-
           - task: Cache@2
             displayName: Save npm scan cache
             inputs:
               key: 'npm-scan | "$(Agent.OS)" | "$(Build.SourceBranch)"'
               path: $(Build.SourcesDirectory)/.npm_scan_cache
               command: save
-
-          - script: |
-              if [ -d "$(Build.SourcesDirectory)/.npm_scan_cache" ]; then
-                echo "##vso[task.setvariable variable=hasNpmScanCache]true"
-              else
-                echo "##vso[task.setvariable variable=hasNpmScanCache]false"
-              fi
-            displayName: Detect .npm_scan_cache presence
-            condition: always()
-
-          - task: PublishBuildArtifacts@1
-            displayName: Publish npm scan cache
-            condition: and(succeededOrFailed(), eq(variables['hasNpmScanCache'], 'true'))
-            inputs:
-              PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache
-              ArtifactName: npm_scan_cache
-              publishLocation: Container
 
           - script: |
               if [ -f "$(Build.SourcesDirectory)/.npm_scan_cache/package_lock_audit.csv" ]; then
@@ -168,22 +143,3 @@ stages:
               ArtifactName: audit_csv
               publishLocation: Container
 
-          # (Publish coverage XML removed)
-
-          # Detect HTML report dir
-          - script: |
-              if [ -d "$(Build.SourcesDirectory)/.npm_scan_cache/report-html" ]; then
-                echo "##vso[task.setvariable variable=hasAuditHtml]true"
-              else
-                echo "##vso[task.setvariable variable=hasAuditHtml]false"
-              fi
-            displayName: Detect audit HTML dir
-            condition: always()
-
-          - task: PublishBuildArtifacts@1
-            displayName: Publish audit HTML
-            condition: and(succeededOrFailed(), eq(variables['hasAuditHtml'], 'true'))
-            inputs:
-              PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache/report-html
-              ArtifactName: audit_html
-              publishLocation: Container
