@@ -357,8 +357,7 @@ def run(packages_file: str, output: str, include_all: bool, force: bool) -> None
 
     repo_index = load_index(PACKAGE_LOCK_REPO_INDEX_FILE)
     if not isinstance(repo_index, dict) or not repo_index:
-        click.echo("[Warn] No se encontr? el ?ndice de package-lock. Ejecuta step_03 previamente.")
-        return
+        raise click.ClickException("No se encontro el indice de package-lock. Ejecuta step_03 previamente.")
 
     manifest = load_index(PACKAGE_LOCK_MANIFEST_FILE)
     if not isinstance(manifest, dict):

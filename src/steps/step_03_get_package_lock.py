@@ -255,13 +255,11 @@ def build_lock_repo_metadata(
 def get_package_lock(force: bool = False) -> None:
     repos = load_repos_cache()
     if not repos:
-        click.echo("No se encontró cache de repositorios. Ejecuta step_01 primero.")
-        return
+        raise click.ClickException("No se encontro cache de repositorios. Ejecuta step_01 primero o revisa las credenciales.")
 
     packages_repo_index = load_packages_repo_index()
     if not packages_repo_index:
-        click.echo("No se encontró index de package.json. Ejecuta step_02 primero.")
-        return
+        raise click.ClickException("No se encontro index de package.json. Ejecuta step_02 previamente.")
 
     manifest = load_lock_manifest()
     lock_repo_index = load_lock_repo_index()
@@ -344,6 +342,9 @@ def get_package_lock(force: bool = False) -> None:
 
     save_index(PACKAGE_LOCK_MANIFEST_FILE, manifest)
     save_index(PACKAGE_LOCK_REPO_INDEX_FILE, lock_repo_index)
+
+    if not lock_repo_index:
+        raise click.ClickException("No se cacheo ningun package-lock. Revisa paso 02 o la conectividad a Azure DevOps.")
 
     failure_summary = ", ".join(
         f"{reason}: {count}" for reason, count in sorted(failures.items())

@@ -27,7 +27,6 @@ PACKAGES_MANIFEST_FILE = "packages_cache.json"
 PACKAGES_REPO_INDEX_FILE = "package_json_repo_index.json"
 
 
-
 def load_packages_manifest() -> Dict[str, Dict[str, Any]]:
     """Load the package.json manifest, migrating legacy payloads if needed."""
     manifest_raw = load_index(PACKAGES_MANIFEST_FILE)
@@ -117,8 +116,9 @@ def build_repo_metadata(item: Dict[str, Any], signature: str) -> Dict[str, Any]:
 def get_packagesjson(force: bool = False) -> None:
     repos = load_repos_cache()
     if not repos:
-        click.echo("No se encontró cache de repositorios. Ejecuta step_01 primero.")
-        return
+        raise click.ClickException(
+            "No se encontro cache de repositorios. Ejecuta step_01 primero o revisa las credenciales."
+        )
 
     manifest = load_packages_manifest()
     repo_index = load_repo_index()
@@ -155,6 +155,11 @@ def get_packagesjson(force: bool = False) -> None:
         update_manifest_entry(manifest, signature, repo_key)
         repo_index[repo_key] = build_repo_metadata(item, signature)
         new_downloads += 1
+
+    if not repo_index:
+        raise click.ClickException(
+            "No se generaron entradas en el indice de package.json. Revisa step_01 o la conectividad a Azure DevOps."
+        )
 
     save_index(PACKAGES_MANIFEST_FILE, manifest)
     save_index(PACKAGES_REPO_INDEX_FILE, repo_index)

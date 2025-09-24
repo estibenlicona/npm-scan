@@ -83,6 +83,20 @@ class Step03GetPackageLockTests(unittest.TestCase):
         )
         return package_signature
 
+    def test_requires_repositories(self) -> None:
+        with mock.patch.object(self.module, "load_repos_cache", return_value=None):
+            with self.assertRaises(self.module.click.ClickException) as ctx:
+                self.module.get_package_lock(force=False)
+        self.assertIn("No se encontro cache de repositorios", str(ctx.exception))
+
+    def test_requires_package_index(self) -> None:
+        repo_item = {"project": {"name": "proj"}, "repository": {"id": "1", "name": "Repo"}, "path": "/src/package.json", "versions": [{"branchName": "main"}]}
+        with mock.patch.object(self.module, "load_repos_cache", return_value=[repo_item]):
+            with mock.patch.object(self.module, "load_packages_repo_index", return_value={}):
+                with self.assertRaises(self.module.click.ClickException) as ctx:
+                    self.module.get_package_lock(force=False)
+        self.assertIn("No se encontro index de package.json", str(ctx.exception))
+
     def test_get_package_lock_downloads_and_updates_indexes(self) -> None:
         repo_item = {
             "project": {"name": "proj"},

@@ -54,6 +54,12 @@ class Step02GetPackagesJsonTests(unittest.TestCase):
         ):
             sys.modules.pop(name, None)
 
+    def test_requires_repository_cache(self) -> None:
+        with mock.patch.object(self.module, "load_repos_cache", return_value=None):
+            with self.assertRaises(self.module.click.ClickException) as ctx:
+                self.module.get_packagesjson(force=False)
+        self.assertIn("No se encontro cache de repositorios", str(ctx.exception))
+
     def test_load_packages_manifest_migrates_legacy_payloads(self) -> None:
         legacy_signature = "legacy"
         structured_signature = "structured"
