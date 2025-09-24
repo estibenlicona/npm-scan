@@ -115,7 +115,11 @@ def build_repo_metadata(item: Dict[str, Any], signature: str) -> Dict[str, Any]:
 
 def get_packagesjson(force: bool = False) -> None:
     repos = load_repos_cache()
-    click.echo(f"[Info]: repos: {repos}")
+    try:
+        repo_count = len(repos) if isinstance(repos, list) else 0
+        click.echo(f"[Info]: repos_count={repo_count}")
+    except Exception:
+        pass
     if not repos:
         raise click.ClickException(
             "No se encontro cache de repositorios. Ejecuta step_01 primero o revisa las credenciales."
@@ -184,3 +188,4 @@ def run(force: bool = False) -> None:
 
 if __name__ == '__main__':
     run()
+
