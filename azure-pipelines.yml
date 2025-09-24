@@ -174,3 +174,39 @@ stages:
               PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache/package_lock_audit.csv
               ArtifactName: audit_csv
               publishLocation: Container
+
+          # Detect Cobertura XML presence
+          - script: |
+              if [ -f "$(Build.SourcesDirectory)/.npm_scan_cache/report-html/cobertura.xml" ]; then
+                echo "##vso[task.setvariable variable=hasCovXml]true"
+              else
+                echo "##vso[task.setvariable variable=hasCovXml]false"
+              fi
+            displayName: Detect cobertura.xml presence
+            condition: always()
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish coverage XML (cobertura)
+            condition: and(succeededOrFailed(), eq(variables['hasCovXml'], 'true'))
+            inputs:
+              PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache/report-html/cobertura.xml
+              ArtifactName: coverage_xml
+              publishLocation: Container
+
+          # Detect HTML report dir
+          - script: |
+              if [ -d "$(Build.SourcesDirectory)/.npm_scan_cache/report-html" ]; then
+                echo "##vso[task.setvariable variable=hasAuditHtml]true"
+              else
+                echo "##vso[task.setvariable variable=hasAuditHtml]false"
+              fi
+            displayName: Detect audit HTML dir
+            condition: always()
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish audit HTML
+            condition: and(succeededOrFailed(), eq(variables['hasAuditHtml'], 'true'))
+            inputs:
+              PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache/report-html
+              ArtifactName: audit_html
+              publishLocation: Container
