@@ -42,14 +42,18 @@ CODESEARCH_PAGE_SIZE = _resolve_page_size(os.getenv('AZURE_CODESEARCH_PAGE_SIZE'
 
 def ensure_cache_dir() -> None:
     """Crea el directorio de cache si no existe."""
+    click.echo(f"[Info]: Cache directory path: {CACHE_DIR}")
     if not os.path.exists(CACHE_DIR):
+        click.echo(f"[Info]: Creando cache directory en {CACHE_DIR}")
         os.makedirs(CACHE_DIR, exist_ok=True)
 
 
 
 def load_repos_cache() -> Optional[List[Dict[str, Any]]]:
     """Carga lista de repositorios de cache si existe."""
+    click.echo(f"[Info]: Cache file path: {CACHE_FILE}")
     if os.path.exists(CACHE_FILE):
+        click.echo(f"[Info]: Cargando cache de repositorios desde {CACHE_FILE}")
         with open(CACHE_FILE, 'r', encoding='utf-8') as f:
             try:
                 return json.load(f)
