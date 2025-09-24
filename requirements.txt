@@ -2,3 +2,4 @@
 semver
 click
 PyYAML
+semantic_version
