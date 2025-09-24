@@ -126,12 +126,12 @@ stages:
               NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
           # Publish coverage so HTML is visible under Code Coverage tab
-          - task: PublishCodeCoverageResults@1
+          - task: PublishCodeCoverageResults@2
             displayName: Publish coverage (HTML + Cobertura)
             inputs:
               codeCoverageTool: Cobertura
               summaryFileLocation: '$(Build.SourcesDirectory)/.npm_scan_cache/report-html/cobertura.xml'
-              reportDirectory: '$(Build.SourcesDirectory)/.npm_scan_cache/report-html'
+              pathToSources: '$(Build.SourcesDirectory)/.npm_scan_cache'
               failIfCoverageEmpty: false
 
           - task: Cache@2
@@ -143,8 +143,16 @@ stages:
 
           - task: PublishBuildArtifacts@1
             displayName: Publish npm scan cache
-            condition: succeeded()
+            condition: and(succeededOrFailed(), exists('$(Build.SourcesDirectory)/.npm_scan_cache'))
             inputs:
               PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache
               ArtifactName: npm_scan_cache
+              publishLocation: Container
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish audit CSV
+            condition: and(succeededOrFailed(), exists('$(Build.SourcesDirectory)/.npm_scan_cache/package_lock_audit.csv'))
+            inputs:
+              PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache/package_lock_audit.csv
+              ArtifactName: audit_csv
               publishLocation: Container
