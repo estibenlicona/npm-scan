@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import click
+
 def _determine_cache_root() -> Path:
     override = os.getenv('NPM_SCAN_CACHE_ROOT')
     if override:
@@ -62,6 +64,7 @@ def load_index(name: str) -> Dict[str, Any]:
     """Read an index JSON stored at the cache root."""
     _ensure_root()
     path = CACHE_ROOT / name
+    click.echo(f"[Info]: path: {path}")
     if not path.exists():
         return {}
     try:

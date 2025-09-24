@@ -126,7 +126,7 @@ def get_packagesjson(force: bool = False) -> None:
     new_downloads = 0
     reused = 0
     failures: Dict[str, int] = {}
-
+    click.echo(f"Procesando {len(repos)} entradas de package.json...")
     for item in repos:
         repo_key = build_repo_key(item)
         if not force and repo_key in repo_index:
