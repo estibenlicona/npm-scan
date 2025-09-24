@@ -1,9 +1,11 @@
 ﻿import csv
+import os
+import sys
+import re
+import click
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
-
-import click
 from semantic_version import NpmSpec, Version  # type: ignore
 
 try:
@@ -24,6 +26,195 @@ PACKAGE_LOCK_REPO_INDEX_FILE = "package_lock_repo_index.json"
 PACKAGE_LOCK_MANIFEST_FILE = "package_lock_manifest.json"
 DEFAULT_TARGETS_FILE = "packages.txt"
 DEFAULT_OUTPUT = CACHE_ROOT / "package_lock_audit.csv"
+
+
+def _supports_color() -> bool:
+    if os.environ.get("NO_COLOR"):
+        return False
+    try:
+        return sys.stdout.isatty()
+    except Exception:
+        return False
+
+
+def _c(code: str, text: str) -> str:
+    """Wrap text with ANSI color if supported."""
+    if not _supports_color():
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
+
+def _osc8(link_text: str, url: str) -> str:
+    """Return an OSC 8 hyperlink sequence with fallback text."""
+    try:
+        start = f"\033]8;;{url}\033\\"
+        end = "\033]8;;\033\\"
+        return f"{start}{link_text}{end}"
+    except Exception:
+        return link_text
+
+
+def _format_clickable_path(path: Path) -> str:
+    abs_path = str(path.resolve())
+    file_uri = path.resolve().as_uri()
+    osc = _osc8("Open CSV", file_uri)
+    return f"{_c('1;34', '[')}{_c('1;36', osc)}{_c('1;34', ']')} {abs_path}"
+
+
+def _strip_ansi(text: str) -> str:
+    """Strip ANSI SGR and OSC8 sequences for width calculation."""
+    if not text:
+        return ""
+    # Strip OSC 8 hyperlink: ESC ] 8 ;; ... ESC \
+    text = re.sub("\x1b]8;;.*?\x1b\\\\", "", text)
+    # Strip SGR sequences like ESC [ 1;31 m
+    text = re.sub("\x1b\[[0-9;]*m", "", text)
+    return text
+
+
+def _render_table(headers: List[str], rows: List[List[str]]) -> None:
+    cols = len(headers)
+    widths = [len(_strip_ansi(h)) for h in headers]
+    for row in rows:
+        for j in range(cols):
+            cell = row[j] if j < len(row) else ""
+            w = len(_strip_ansi(str(cell)))
+            if w > widths[j]:
+                widths[j] = w
+    border = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+    header_cells = [
+        f" {_c('1;37', headers[j])}{' ' * (widths[j] - len(_strip_ansi(headers[j])))} "
+        for j in range(cols)
+    ]
+    header_line = "|" + "|".join(header_cells) + "|"
+    click.echo(border)
+    click.echo(header_line)
+    click.echo(border)
+    for row in rows:
+        cells = []
+        for j in range(cols):
+            cell = str(row[j]) if j < len(row) else ""
+            pad = widths[j] - len(_strip_ansi(cell))
+            cells.append(f" {cell}{' ' * pad} ")
+        click.echo("|" + "|".join(cells) + "|")
+    click.echo(border)
+
+
+def _compute_metrics(
+    rows: List[Dict[str, Any]],
+    repo_index: Dict[str, Any],
+    audited_repos: Set[str],
+    targets_count: int,
+) -> Dict[str, Any]:
+    repo_count = len(repo_index)
+    total_rows = len(rows)
+    estados = Counter(row.get("status", "") for row in rows if row.get("status"))
+
+    risky_status = {"not_covered", "invalid_current", "invalid_target"}
+    repos_con_riesgo: Set[str] = set()
+    direct = 0
+    transitive = 0
+    entry_types = Counter()
+
+    for row in rows:
+        repo_key = row.get("repo_key") or ""
+        status = row.get("status") or ""
+        if status in risky_status and repo_key:
+            repos_con_riesgo.add(repo_key)
+
+        et = (row.get("entry_type") or "").lower()
+        if et:
+            entry_types[et] += 1
+
+        if et in ("dependency", "dev", "peer", "optional"):
+            path_val = (row.get("package_path") or "").strip()
+            if path_val in ("", "."):
+                direct += 1
+            else:
+                transitive += 1
+
+    paquetes_unicos = len({(row.get("package_name"), row.get("current_spec")) for row in rows})
+
+    # Count lock sources among audited repos
+    locks_generated = 0
+    locks_repository = 0
+    for rk in audited_repos:
+        meta = repo_index.get(rk) if isinstance(repo_index, dict) else None
+        if isinstance(meta, dict):
+            src = (meta.get("source") or "").lower()
+            if src == "generated":
+                locks_generated += 1
+            elif src == "repository":
+                locks_repository += 1
+
+    return {
+        "repos_total": repo_count,
+        "repos_auditados": len(audited_repos),
+        "repos_con_riesgo": len(repos_con_riesgo),
+        "paquetes_total": total_rows,
+        "paquetes_unicos": paquetes_unicos,
+        "targets_total": targets_count,
+        "estados": estados,
+        "directos": direct,
+        "transitivos": transitive,
+        "entry_types": entry_types,
+        "locks_generated": locks_generated,
+        "locks_repository": locks_repository,
+    }
+
+
+def _print_visual_dashboard(
+    rows: List[Dict[str, Any]],
+    repo_index: Dict[str, Any],
+    audited_repos: Set[str],
+    output_path: Path,
+    targets_count: int,
+) -> None:
+    metrics = _compute_metrics(rows, repo_index, audited_repos, targets_count)
+
+    title = " NPM Scan - Audit Summary "
+    line = "=" * max(60, len(title) + 6)
+
+    click.echo(_c("1;35", line))
+    click.echo(_c("1;97", title))
+    click.echo(_c("1;35", line))
+
+    # Resumen (tabla)
+    resumen_rows = [
+        ["Repos auditados", f"{metrics['repos_auditados']} / {metrics['repos_total']}"]
+        , ["Repos con riesgo", _c('1;31', str(metrics['repos_con_riesgo']))]
+        , ["Locks (Repositorio)", str(metrics['locks_repository'])]
+        , ["Locks (Generados)", str(metrics['locks_generated'])]
+        , ["Paquetes analizados", str(metrics['paquetes_total'])]
+        , ["Paquetes únicos", str(metrics['paquetes_unicos'])]
+        , ["Objetivos", str(metrics['targets_total'])]
+        , ["Dependencias directas", str(metrics['directos'])]
+        , ["Dependencias transitivas", str(metrics['transitivos'])]
+    ]
+    _render_table(["Métrica", "Valor"], resumen_rows)
+
+    # Estados (covered = rojo, not_covered = verde)
+    est = metrics["estados"]
+    status_order = ("covered", "not_covered", "invalid_current", "invalid_target", "no_target")
+    status_colors = {
+        "covered": "1;31",
+        "not_covered": "1;32",
+        "invalid_current": "1;33",
+        "invalid_target": "1;33",
+        "no_target": "90",
+    }
+    rows_status: List[List[str]] = []
+    for key in status_order:
+        if key in est:
+            count = est.get(key, 0)
+            rows_status.append([key, _c(status_colors.get(key, '0'), str(count))])
+    if rows_status:
+        _render_table(["Estado", "Conteo"], rows_status)
+
+    click.echo(_c("1;34", "Resultado CSV:"))
+    click.echo(_format_clickable_path(output_path))
+
+    click.echo(_c("1;35", line))
 
 
 def load_target_lines(file_path: Path) -> List[str]:
@@ -117,6 +308,7 @@ def _iter_dependency_specs(pkg_info: Dict[str, Any]) -> Iterable[Tuple[str, str,
         ("dependencies", "dependency"),
         ("peerDependencies", "peer"),
         ("devDependencies", "dev"),
+        ("optionalDependencies", "optional"),
     )
     for key, entry_type in mapping:
         deps = pkg_info.get(key)
@@ -434,6 +626,16 @@ def run(packages_file: str, output: str, include_all: bool, force: bool) -> None
         )
     if not rows:
         click.echo("No se encontraron paquetes que cumplan los criterios seleccionados.")
+    try:
+        _print_visual_dashboard(
+            rows=rows,
+            repo_index=repo_index,
+            audited_repos=audited_repos,
+            output_path=Path(output),
+            targets_count=len(targets_idx),
+        )
+    except Exception:
+        pass
 
 if __name__ == '__main__':
     run()
