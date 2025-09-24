@@ -4,16 +4,6 @@
     type: boolean
     default: false
 
-trigger:
-  branches:
-    include:
-      - master
-
-pr:
-  branches:
-    include:
-      - master
-
 variables:
   PYTHON_VERSION: '3.11'
   PIP_CACHE_DIR: '$(Pipeline.Workspace)/.pip'
