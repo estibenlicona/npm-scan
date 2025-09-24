@@ -119,6 +119,21 @@ stages:
                 AZURE_ORG: $(AZURE_ORG)
                 NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
 
+          # Build HTML report and Cobertura XML from the CSV
+          - script: python -m src.steps.step_05_publish_coverage
+            displayName: Build HTML report and coverage XML
+            env:
+              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
+
+          # Publish coverage so HTML is visible under Code Coverage tab
+          - task: PublishCodeCoverageResults@1
+            displayName: Publish coverage (HTML + Cobertura)
+            inputs:
+              codeCoverageTool: Cobertura
+              summaryFileLocation: '$(Build.SourcesDirectory)/.npm_scan_cache/report-html/cobertura.xml'
+              reportDirectory: '$(Build.SourcesDirectory)/.npm_scan_cache/report-html'
+              failIfCoverageEmpty: false
+
           - task: Cache@2
             displayName: Save npm scan cache
             inputs:
