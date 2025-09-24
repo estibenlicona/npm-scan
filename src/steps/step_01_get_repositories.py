@@ -82,6 +82,7 @@ def fetch_repositories(skip: int = 0, top: int = CODESEARCH_PAGE_SIZE) -> List[D
         Lista de objetos de resultado
     """
     url = f"https://almsearch.dev.azure.com/{ORG}/_apis/search/codesearchresults?api-version=7.1"
+    click.echo(f"[Info]: Consultando Azure DevOps: url={url}, skip={skip}, top={top}")
     payload = {"searchText": "filename:package.json",
                "$skip": skip, "$top": top}
     headers = {"Content-Type": "application/json"}
