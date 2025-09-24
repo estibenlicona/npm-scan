@@ -1,4 +1,5 @@
 ﻿import json
+import copy
 import os
 import pickle
 import shutil
@@ -170,8 +171,11 @@ def generate_lock_with_npm(package_content: Dict[str, Any]) -> Optional[Dict[str
     try:
         package_path = os.path.join(temp_dir, "package.json")
         lock_path = os.path.join(temp_dir, "package-lock.json")
+        effective_content = copy.deepcopy(package_content) if isinstance(package_content, dict) else package_content
+        if isinstance(effective_content, dict) and effective_content.pop('workspaces', None) is not None:
+            click.echo("[Warn] package.json contiene 'workspaces'; eliminado para generar lock de fallback")
         with open(package_path, "w", encoding="utf-8") as handle:
-            json.dump(package_content, handle, indent=2, ensure_ascii=False)
+            json.dump(effective_content, handle, indent=2, ensure_ascii=False)
         result = subprocess.run(
             [
                 "npm",
