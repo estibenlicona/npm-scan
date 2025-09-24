@@ -44,6 +44,11 @@ stages:
                 pip | "$(Agent.OS)"
               path: '$(PIP_CACHE_DIR)'
 
+          - task: ManualValidation@0
+            displayName: Confirmar ejecución Step 01
+            inputs:
+              instructions: "Revisa el contexto y presiona Resume para lanzar Step 01."
+
           - script: |
               python -m pip install --upgrade pip
               python -m pip install --cache-dir $(PIP_CACHE_DIR) -r requirements.txt
