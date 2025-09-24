@@ -343,6 +343,7 @@ def write_report(rows: List[Dict[str, Any]], output_path: Path) -> None:
     help="Opción reservada para compatibilidad; no tiene efecto.",
 )
 def run(packages_file: str, output: str, include_all: bool, force: bool) -> None:
+    click.echo(f"[Info]: packages_file: {packages_file}")
     packages_path = Path(packages_file)
     try:
         target_lines = load_target_lines(packages_path)
@@ -433,6 +434,3 @@ def run(packages_file: str, output: str, include_all: bool, force: bool) -> None
         )
     if not rows:
         click.echo("No se encontraron paquetes que cumplan los criterios seleccionados.")
-
-
-run()
