@@ -1,4 +1,4 @@
-﻿import importlib
+import importlib
 import os
 import sys
 import tempfile
@@ -6,9 +6,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-STEPS_DIR = Path(__file__).resolve().parents[1] / "src" / "steps"
-if str(STEPS_DIR) not in sys.path:
-    sys.path.insert(0, str(STEPS_DIR))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+MODULE_NAME = "src.steps.step_03_get_package_lock"
+CACHE_UTILS_MODULE = "src.steps.cache_utils"
+STEP02_MODULE = "src.steps.step_02_get_packagesjson"
+STEP01_MODULE = "src.steps.step_01_get_repositories"
 
 
 class Step03GetPackageLockTests(unittest.TestCase):
@@ -20,6 +25,10 @@ class Step03GetPackageLockTests(unittest.TestCase):
         self.cache_root = Path(self.temp_dir.name)
 
         for name in (
+            MODULE_NAME,
+            CACHE_UTILS_MODULE,
+            STEP02_MODULE,
+            STEP01_MODULE,
             "step_03_get_package_lock",
             "cache_utils",
             "step_02_get_packagesjson",
@@ -27,10 +36,10 @@ class Step03GetPackageLockTests(unittest.TestCase):
         ):
             sys.modules.pop(name, None)
 
-        self.cache_utils = importlib.import_module("cache_utils")
+        self.cache_utils = importlib.import_module(CACHE_UTILS_MODULE)
         self.cache_utils.CACHE_ROOT = self.cache_root
 
-        self.module = importlib.import_module("step_03_get_package_lock")
+        self.module = importlib.import_module(MODULE_NAME)
 
     def tearDown(self) -> None:
         if self._orig_pat is None:
@@ -39,6 +48,10 @@ class Step03GetPackageLockTests(unittest.TestCase):
             os.environ['AZURE_PAT'] = self._orig_pat
 
         for name in (
+            MODULE_NAME,
+            CACHE_UTILS_MODULE,
+            STEP02_MODULE,
+            STEP01_MODULE,
             "step_03_get_package_lock",
             "cache_utils",
             "step_02_get_packagesjson",

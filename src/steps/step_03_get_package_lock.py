@@ -9,16 +9,28 @@ from typing import Any, Dict, Optional, Tuple
 import click
 import requests
 
-from cache_utils import (
-    CACHE_ROOT,
-    build_repo_key,
-    load_index,
-    load_json_document,
-    save_index,
-    save_json_document,
-    signature_for_json,
-)
-from step_01_get_repositories import ORG, auth, load_repos_cache
+try:
+    from .cache_utils import (
+        CACHE_ROOT,
+        build_repo_key,
+        load_index,
+        load_json_document,
+        save_index,
+        save_json_document,
+        signature_for_json,
+    )
+    from .step_01_get_repositories import ORG, auth, load_repos_cache
+except ImportError:
+    from cache_utils import (
+        CACHE_ROOT,
+        build_repo_key,
+        load_index,
+        load_json_document,
+        save_index,
+        save_json_document,
+        signature_for_json,
+    )
+    from step_01_get_repositories import ORG, auth, load_repos_cache
 
 PACKAGE_JSON_SUBDIR = "package_json"
 PACKAGE_LOCK_SUBDIR = "package_lock"

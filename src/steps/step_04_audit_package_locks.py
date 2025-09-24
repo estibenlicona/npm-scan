@@ -6,11 +6,18 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 import click
 from semantic_version import NpmSpec, Version  # type: ignore
 
-from cache_utils import (
-    CACHE_ROOT,
-    load_index,
-    load_json_document,
-)
+try:
+    from .cache_utils import (
+        CACHE_ROOT,
+        load_index,
+        load_json_document,
+    )
+except ImportError:
+    from cache_utils import (
+        CACHE_ROOT,
+        load_index,
+        load_json_document,
+    )
 
 PACKAGE_LOCK_SUBDIR = "package_lock"
 PACKAGE_LOCK_REPO_INDEX_FILE = "package_lock_repo_index.json"

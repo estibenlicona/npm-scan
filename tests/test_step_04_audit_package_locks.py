@@ -1,4 +1,4 @@
-﻿import csv
+import csv
 import importlib
 import os
 import sys
@@ -6,9 +6,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-STEPS_DIR = Path(__file__).resolve().parents[1] / "src" / "steps"
-if str(STEPS_DIR) not in sys.path:
-    sys.path.insert(0, str(STEPS_DIR))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+MODULE_NAME = "src.steps.step_04_audit_package_locks"
+CACHE_UTILS_MODULE = "src.steps.cache_utils"
+STEPS_DIR = PROJECT_ROOT / "src" / "steps"
 
 
 class Step04AuditPackageLocksTests(unittest.TestCase):
@@ -20,12 +24,14 @@ class Step04AuditPackageLocksTests(unittest.TestCase):
         self.cache_root = Path(self.temp_dir.name)
 
         for name in (
+            MODULE_NAME,
+            CACHE_UTILS_MODULE,
             "step_04_audit_package_locks",
             "cache_utils",
         ):
             sys.modules.pop(name, None)
 
-        self.cache_utils = importlib.import_module("cache_utils")
+        self.cache_utils = importlib.import_module(CACHE_UTILS_MODULE)
         self.cache_utils.CACHE_ROOT = self.cache_root
 
         self.repo_item = {
@@ -94,13 +100,13 @@ class Step04AuditPackageLocksTests(unittest.TestCase):
         click.echo = lambda *args, **kwargs: None
         try:
             spec = importlib.util.spec_from_file_location(
-                "step_04_audit_package_locks",
+                MODULE_NAME,
                 STEPS_DIR / "step_04_audit_package_locks.py",
             )
             if spec is None or spec.loader is None:
                 raise RuntimeError("Cannot load step_04_audit_package_locks")
             module = importlib.util.module_from_spec(spec)
-            sys.modules[spec.name] = module
+            sys.modules[MODULE_NAME] = module
             try:
                 spec.loader.exec_module(module)
             except SystemExit:
@@ -120,6 +126,8 @@ class Step04AuditPackageLocksTests(unittest.TestCase):
             os.environ['AZURE_PAT'] = self._orig_pat
 
         for name in (
+            MODULE_NAME,
+            CACHE_UTILS_MODULE,
             "step_04_audit_package_locks",
             "cache_utils",
         ):

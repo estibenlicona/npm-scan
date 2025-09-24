@@ -3,14 +3,24 @@
 import click
 import requests
 
-from step_01_get_repositories import ORG, auth, load_repos_cache
-from cache_utils import (
-    build_repo_key,
-    load_index,
-    save_index,
-    save_json_document,
-    signature_for_json,
-)
+try:
+    from .step_01_get_repositories import ORG, auth, load_repos_cache
+    from .cache_utils import (
+        build_repo_key,
+        load_index,
+        save_index,
+        save_json_document,
+        signature_for_json,
+    )
+except ImportError:
+    from step_01_get_repositories import ORG, auth, load_repos_cache
+    from cache_utils import (
+        build_repo_key,
+        load_index,
+        save_index,
+        save_json_document,
+        signature_for_json,
+    )
 
 PACKAGE_JSON_SUBDIR = "package_json"
 PACKAGES_MANIFEST_FILE = "packages_cache.json"
