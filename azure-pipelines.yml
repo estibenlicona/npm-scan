@@ -2,7 +2,7 @@
   - name: forceRefresh
     displayName: Force refresh caches
     type: boolean
-    default: false
+    default: true
 
 trigger:
   branches:
