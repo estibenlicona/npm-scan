@@ -5,7 +5,7 @@ import pickle
 import shutil
 import subprocess
 import tempfile
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List, Set
 
 import click
 import requests
@@ -163,6 +163,89 @@ def check_npm_available() -> bool:
         return False
 
 
+def _get_private_scopes() -> Set[str]:
+    scopes_raw = os.getenv("NPM_PRIVATE_SCOPES", "@appcross")
+    scopes: Set[str] = set()
+    for part in scopes_raw.split(","):
+        s = part.strip()
+        if s:
+            if not s.startswith("@"):
+                s = "@" + s
+            scopes.add(s)
+    return scopes
+
+
+def _sanitize_package_json_for_fallback(content: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    msgs: List[str] = []
+    effective = copy.deepcopy(content)
+
+    # Remove workspaces (avoids EWORKSPACESCONFIG)
+    if effective.pop("workspaces", None) is not None:
+        msgs.append("[Warn] package.json contiene 'workspaces'; eliminado para generar lock de fallback")
+
+    # Remove overrides to avoid EOVERRIDE conflicts
+    if effective.pop("overrides", None) is not None:
+        msgs.append("[Warn] package.json contiene 'overrides'; eliminado para evitar conflictos en fallback")
+
+    private_scopes = _get_private_scopes()
+
+    def should_drop_dep(name: str, spec: Any) -> Tuple[bool, Optional[str]]:
+        if not isinstance(name, str):
+            return True, None
+        # Private scopes
+        for scope in private_scopes:
+            if name.startswith(scope + "/"):
+                return True, "private"
+        # Unresolvable specs in temp dir
+        if isinstance(spec, str):
+            s = spec.strip().lower()
+            invalid_prefixes = (
+                "file:",
+                "link:",
+                "workspace:",
+                "git+",
+                "github:",
+                "http:",
+                "https:",
+            )
+            if s.startswith(invalid_prefixes):
+                return True, "local"
+        return False, None
+
+    removed_private: List[str] = []
+    removed_local: List[str] = []
+    for key in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
+        deps = effective.get(key)
+        if not isinstance(deps, dict):
+            continue
+        to_delete: List[str] = []
+        for dep_name, dep_spec in deps.items():
+            drop, reason = should_drop_dep(dep_name, dep_spec)
+            if drop:
+                to_delete.append(dep_name)
+                if reason == "private":
+                    removed_private.append(dep_name)
+                elif reason == "local":
+                    removed_local.append(dep_name)
+        for dep_name in to_delete:
+            deps.pop(dep_name, None)
+        if not deps:
+            effective.pop(key, None)
+
+    if removed_private:
+        msgs.append(
+            "[Warn] Dependencias de scopes privados omitidas en fallback: "
+            + ", ".join(sorted(set(removed_private)))
+        )
+    if removed_local:
+        msgs.append(
+            "[Warn] Dependencias locales/git/url omitidas en fallback: "
+            + ", ".join(sorted(set(removed_local)))
+        )
+
+    return effective, msgs
+
+
 def generate_lock_with_npm(package_content: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not check_npm_available():
         click.echo("[Error] npm no disponible para generar package-lock.json")
@@ -172,10 +255,14 @@ def generate_lock_with_npm(package_content: Dict[str, Any]) -> Optional[Dict[str
         package_path = os.path.join(temp_dir, "package.json")
         lock_path = os.path.join(temp_dir, "package-lock.json")
         effective_content = copy.deepcopy(package_content) if isinstance(package_content, dict) else package_content
-        if isinstance(effective_content, dict) and effective_content.pop('workspaces', None) is not None:
-            click.echo("[Warn] package.json contiene 'workspaces'; eliminado para generar lock de fallback")
+        if isinstance(effective_content, dict):
+            effective_content, _msgs = _sanitize_package_json_for_fallback(effective_content)
+            for m in _msgs:
+                click.echo(m)
         with open(package_path, "w", encoding="utf-8") as handle:
             json.dump(effective_content, handle, indent=2, ensure_ascii=False)
+        env = os.environ.copy()
+        env.setdefault("npm_config_cache", os.path.join(temp_dir, "npm-cache"))
         result = subprocess.run(
             [
                 "npm",
@@ -185,12 +272,14 @@ def generate_lock_with_npm(package_content: Dict[str, Any]) -> Optional[Dict[str
                 "--ignore-scripts",
                 "--no-audit",
                 "--no-fund",
+                "--prefer-offline",
             ],
             cwd=temp_dir,
             capture_output=True,
             text=True,
-            timeout=180,
+            timeout=120,
             check=False,
+            env=env,
         )
         if result.returncode != 0:
             click.echo(f"[Error] npm install fallo generando package-lock: {result.stderr.strip()}")
