@@ -181,3 +181,6 @@ def get_packagesjson(force: bool = False) -> None:
 @click.option("--force", is_flag=True, help="Forzar refresco de cache de packages")
 def run(force: bool = False) -> None:
     get_packagesjson(force=force)
+
+if __name__ == '__main__':
+    run()

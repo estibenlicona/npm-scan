@@ -434,3 +434,6 @@ def run(packages_file: str, output: str, include_all: bool, force: bool) -> None
         )
     if not rows:
         click.echo("No se encontraron paquetes que cumplan los criterios seleccionados.")
+
+if __name__ == '__main__':
+    run()

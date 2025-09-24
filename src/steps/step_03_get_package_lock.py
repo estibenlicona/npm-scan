@@ -363,3 +363,6 @@ def get_package_lock(force: bool = False) -> None:
 @click.option("--force", is_flag=True, help="Forzar regeneración de package-lock.json")
 def run(force: bool = False) -> None:
     get_package_lock(force=force)
+
+if __name__ == '__main__':
+    run()

@@ -145,3 +145,6 @@ def run(force: bool = False):
         get_repositories(force=force)
     except Exception as e:
         print(f"[Error]: obteniendo repositorios: {e}")
+
+if __name__ == '__main__':
+    run()
