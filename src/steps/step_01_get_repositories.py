@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 import click
 from typing import Any, Dict, List, Optional
@@ -15,10 +15,13 @@ if not PAT:
 auth = HTTPBasicAuth('', PAT)
 
 # Cache de repositorios
-CACHE_DIR = os.path.join(os.getcwd(), '.npm_scan_cache')
-click.echo(f"[Info]: CACHE_DIR: {CACHE_DIR}")
-CACHE_FILE = os.path.join(CACHE_DIR, 'repos_cache.json')
-click.echo(f"[Info]: CACHE_FILE: {CACHE_FILE}")
+# Cache de repositorios
+try:
+    from .cache_utils import CACHE_ROOT as _CACHE_ROOT  # package execution
+except ImportError:
+    from cache_utils import CACHE_ROOT as _CACHE_ROOT   # module execution
+CACHE_DIR = str(_CACHE_ROOT)
+CACHE_FILE = str(_CACHE_ROOT / 'repos_cache.json')
 
 _DEFAULT_PAGE_SIZE = 500
 
@@ -49,7 +52,6 @@ def load_repos_cache() -> Optional[List[Dict[str, Any]]]:
     if os.path.exists(CACHE_FILE):
         with open(CACHE_FILE, 'r', encoding='utf-8') as f:
             try:
-                click.echo(f"[Info]: CACHE_FILE: {CACHE_FILE}") 
                 return json.load(f)
             except json.JSONDecodeError:
                 return None
