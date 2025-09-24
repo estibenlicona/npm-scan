@@ -131,5 +131,3 @@ def get_repositories(force: bool = False) -> Optional[List[Dict[str, Any]]]:
 def run(force: bool = False):
     """Invoca la obtención de repositorios, opcionalmente forzando cache."""
     get_repositories(force=force)
-
-run()

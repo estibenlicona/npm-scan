@@ -1,0 +1,104 @@
+﻿trigger:
+  branches:
+    include:
+      - master
+
+pr:
+  branches:
+    include:
+      - master
+
+variables:
+  PYTHON_VERSION: '3.11'
+  PIP_CACHE_DIR: '$(Pipeline.Workspace)/.pip'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Scan
+    displayName: npm scan pipeline
+    jobs:
+      - job: runSteps
+        displayName: Run scan steps
+        steps:
+          - checkout: self
+            clean: true
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(PYTHON_VERSION)'
+              addToPath: true
+
+          - task: Cache@2
+            displayName: Restore pip cache
+            inputs:
+              key: 'pip | "$(Agent.OS)" | requirements.txt'
+              restoreKeys: |
+                pip | "$(Agent.OS)"
+              path: '$(PIP_CACHE_DIR)'
+
+          - script: |
+              python -m pip install --upgrade pip
+              python -m pip install --cache-dir $(PIP_CACHE_DIR) -r requirements.txt
+            displayName: Install dependencies
+
+          - task: Cache@2
+            displayName: Restore npm scan cache
+            inputs:
+              key: 'npm-scan | "$(Agent.OS)" | "$(Build.SourceBranch)"'
+              restoreKeys: |
+                npm-scan | "$(Agent.OS)"
+              path: $(Build.SourcesDirectory)/.npm_scan_cache
+            cacheHitVar: NpmScanCacheRestored
+
+          - script: |
+              python -m unittest
+            displayName: Run unit tests
+            env:
+              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
+
+          - script: python -m src.steps.step_01_get_repositories --force
+            displayName: Step 01 - Get repositories
+            env:
+              AZURE_PAT: $(AZURE_PAT)
+              AZURE_ORG: $(AZURE_ORG)
+              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
+
+          - script: python -m src.steps.step_02_get_packagesjson --force
+            displayName: Step 02 - Cache package.json files
+            env:
+              AZURE_PAT: $(AZURE_PAT)
+              AZURE_ORG: $(AZURE_ORG)
+              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
+
+          - script: python -m src.steps.step_03_get_package_lock --force
+            displayName: Step 03 - Cache package-lock files
+            env:
+              AZURE_PAT: $(AZURE_PAT)
+              AZURE_ORG: $(AZURE_ORG)
+              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
+
+          - script: python -m src.steps.step_04_audit_package_locks --packages-file packages.txt
+            displayName: Step 04 - Audit package locks
+            env:
+              AZURE_PAT: $(AZURE_PAT)
+              AZURE_ORG: $(AZURE_ORG)
+              NPM_SCAN_CACHE_ROOT: $(Build.SourcesDirectory)/.npm_scan_cache
+
+
+          - task: Cache@2
+            displayName: Save npm scan cache
+            condition: ne(variables.NpmScanCacheRestored, 'true')
+            inputs:
+              key: 'npm-scan | "$(Agent.OS)" | "$(Build.SourceBranch)"'
+              path: $(Build.SourcesDirectory)/.npm_scan_cache
+              command: save
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish npm scan cache
+            condition: succeededOrFailed()
+            inputs:
+              PathtoPublish: $(Build.SourcesDirectory)/.npm_scan_cache
+              ArtifactName: npm_scan_cache
+              publishLocation: Container

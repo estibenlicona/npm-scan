@@ -1,4 +1,5 @@
 ﻿import importlib
+import os
 import sys
 import tempfile
 import unittest
@@ -11,15 +12,23 @@ MODULE_NAME = "src.steps.step_01_get_repositories"
 class Step01RepositoriesTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
+        self._orig_pat = os.environ.get('AZURE_PAT')
+        os.environ['AZURE_PAT'] = 'test-token'
         cache_dir = Path(self.temp_dir.name) / ".npm_scan_cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
         if MODULE_NAME in sys.modules:
             del sys.modules[MODULE_NAME]
         self.module = importlib.import_module(MODULE_NAME)
+        self.module.PAT = 'test-token'
         self.module.CACHE_DIR = str(cache_dir)
         self.module.CACHE_FILE = str(cache_dir / "repos_cache.json")
 
     def tearDown(self) -> None:
+        if self._orig_pat is None:
+            os.environ.pop('AZURE_PAT', None)
+        else:
+            os.environ['AZURE_PAT'] = self._orig_pat
+
         self.temp_dir.cleanup()
 
     def test_save_and_load_repos_cache(self) -> None:

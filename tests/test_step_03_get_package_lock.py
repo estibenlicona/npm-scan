@@ -1,4 +1,5 @@
 ﻿import importlib
+import os
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,8 @@ if str(STEPS_DIR) not in sys.path:
 class Step03GetPackageLockTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
+        self._orig_pat = os.environ.get('AZURE_PAT')
+        os.environ['AZURE_PAT'] = 'test-token'
         self.addCleanup(self.temp_dir.cleanup)
         self.cache_root = Path(self.temp_dir.name)
 
@@ -30,6 +33,11 @@ class Step03GetPackageLockTests(unittest.TestCase):
         self.module = importlib.import_module("step_03_get_package_lock")
 
     def tearDown(self) -> None:
+        if self._orig_pat is None:
+            os.environ.pop('AZURE_PAT', None)
+        else:
+            os.environ['AZURE_PAT'] = self._orig_pat
+
         for name in (
             "step_03_get_package_lock",
             "cache_utils",

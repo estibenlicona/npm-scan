@@ -4,7 +4,13 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-CACHE_ROOT = Path(os.getcwd()) / ".npm_scan_cache"
+def _determine_cache_root() -> Path:
+    override = os.getenv('NPM_SCAN_CACHE_ROOT')
+    if override:
+        return Path(override).expanduser()
+    return Path(os.getcwd()) / '.npm_scan_cache'
+
+CACHE_ROOT = _determine_cache_root()
 
 
 def _ensure_root() -> None:
