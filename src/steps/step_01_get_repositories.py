@@ -126,8 +126,9 @@ def get_repositories(force: bool = False) -> Optional[List[Dict[str, Any]]]:
             print(f"Usando cache de repositorios ({len(cached)} items)")
             return cached
     repos = fetch_all_repositories()
+    click.echo(f"[Info]: Repositorios obtenidos: {len(repos)}")
     save_repos_cache(repos)
-    click.echo("Repos cargados utilizando cache")
+    click.echo("[Info]: Repos cargados utilizando cache")
     return repos
 
 
