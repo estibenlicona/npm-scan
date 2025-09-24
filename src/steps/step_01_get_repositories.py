@@ -16,7 +16,9 @@ auth = HTTPBasicAuth('', PAT)
 
 # Cache de repositorios
 CACHE_DIR = os.path.join(os.getcwd(), '.npm_scan_cache')
+click.echo(f"[Info]: CACHE_DIR: {CACHE_DIR}")
 CACHE_FILE = os.path.join(CACHE_DIR, 'repos_cache.json')
+click.echo(f"[Info]: CACHE_FILE: {CACHE_FILE}")
 
 _DEFAULT_PAGE_SIZE = 500
 
